@@ -1,14 +1,4 @@
 {
-  "git": {
-    "deploymentEnabled": {
-      "main": false,
-      "master": false
-    }
-  },
-  "github": {
-    "enabled": false,
-    "silent": true
-  },
   "version": 2,
   "builds": [
     {
