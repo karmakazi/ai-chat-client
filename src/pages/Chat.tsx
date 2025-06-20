@@ -1,5 +1,6 @@
 import React, { useState, FormEvent, useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
+import { keyframes } from '@emotion/react';
 import { sendMessage } from '../services/gemini';
 import { TrainingData } from './Admin';
 
@@ -28,6 +29,29 @@ const DEFAULT_SETTINGS = {
   }
 };
 
+const fadeIn = keyframes`
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const pulseAnimation = keyframes`
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+`;
+
+const typingAnimation = keyframes`
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+`;
+
 const AppContainer = styled.div`
   display: flex;
   flex-direction: column;
@@ -35,6 +59,7 @@ const AppContainer = styled.div`
   background-color: #f0f2f5;
   align-items: center;
   justify-content: center;
+  transition: all 0.3s ease;
 `;
 
 const ChatWindow = styled.div`
@@ -46,6 +71,11 @@ const ChatWindow = styled.div`
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
 `;
 
 const MessageList = styled.div`
@@ -54,6 +84,25 @@ const MessageList = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+    
+    &:hover {
+      background: #555;
+    }
+  }
 `;
 
 interface MessageProps {
@@ -69,12 +118,48 @@ const Message = styled.div<MessageProps>`
   background-color: ${props => (props.isUser ? '#007bff' : '#e9ecef')};
   color: ${props => (props.isUser ? 'white' : 'black')};
   white-space: pre-wrap;
+  opacity: 0;
+  animation: ${fadeIn} 0.3s ease forwards;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const LoadingDots = styled.div`
+  display: flex;
+  gap: 4px;
+  padding: 10px;
+  align-self: flex-start;
+`;
+
+const Dot = styled.div`
+  width: 8px;
+  height: 8px;
+  background-color: #007bff;
+  border-radius: 50%;
+  animation: ${typingAnimation} 1.4s infinite;
+  
+  &:nth-of-type(2) {
+    animation-delay: 0.2s;
+  }
+  
+  &:nth-of-type(3) {
+    animation-delay: 0.4s;
+  }
 `;
 
 const InputForm = styled.form`
   display: flex;
   padding: 20px;
   border-top: 1px solid #ddd;
+  transition: all 0.3s ease;
+  
+  &:focus-within {
+    background-color: #f8f9fa;
+  }
 `;
 
 const Input = styled.input`
@@ -83,9 +168,18 @@ const Input = styled.input`
   border-radius: 18px;
   padding: 10px 15px;
   font-size: 16px;
+  transition: all 0.3s ease;
+  
   &:focus {
     outline: none;
     border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
   }
 `;
 
@@ -98,12 +192,21 @@ const SendButton = styled.button`
   margin-left: 10px;
   cursor: pointer;
   font-size: 16px;
-  &:hover {
+  transition: all 0.2s ease;
+  
+  &:hover:not(:disabled) {
     background-color: #0056b3;
+    transform: translateY(-1px);
   }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
   &:disabled {
     background-color: #a0c7e4;
     cursor: not-allowed;
+    transform: none;
   }
 `;
 
@@ -209,11 +312,23 @@ function Chat() {
       <ChatWindow>
         <MessageList ref={messageListRef}>
           {messages.map((msg, index) => (
-            <Message key={index} isUser={msg.isUser}>
+            <Message 
+              key={index} 
+              isUser={msg.isUser}
+              style={{ 
+                animationDelay: `${index * 0.1}s`,
+              }}
+            >
               {msg.text}
             </Message>
           ))}
-           {isLoading && <Message isUser={false}>Thinking...</Message>}
+          {isLoading && (
+            <LoadingDots>
+              <Dot />
+              <Dot />
+              <Dot />
+            </LoadingDots>
+          )}
         </MessageList>
         <InputForm onSubmit={handleSubmit}>
           <Input
@@ -223,7 +338,10 @@ function Chat() {
             placeholder="Type a message..."
             disabled={isLoading}
           />
-          <SendButton type="submit" disabled={isLoading || !input.trim()}>
+          <SendButton 
+            type="submit" 
+            disabled={isLoading || !input.trim()}
+          >
             {isLoading ? 'Sending...' : 'Send'}
           </SendButton>
         </InputForm>
