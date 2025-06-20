@@ -202,10 +202,48 @@ const ToggleInput = styled.input`
   }
 `;
 
+const PrioritySelect = styled.select`
+  padding: 0.5rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  margin-right: 1rem;
+  background-color: white;
+  cursor: pointer;
+
+  &.high {
+    border-color: #dc3545;
+    color: #dc3545;
+  }
+
+  &.medium {
+    border-color: #ffc107;
+    color: #856404;
+  }
+
+  &.low {
+    border-color: #28a745;
+    color: #28a745;
+  }
+`;
+
+const ControlsGroup = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  justify-content: space-between;
+`;
+
+const LeftControls = styled.div`
+  display: flex;
+  align-items: center;
+`;
+
 export interface TrainingData {
   id: string;
   context: string;
   isEnabled: boolean;
+  priority: 'high' | 'medium' | 'low';
 }
 
 interface PersonalitySettings {
@@ -280,7 +318,8 @@ function Admin() {
       const newExample: TrainingData = {
         id: Date.now().toString(),
         context,
-        isEnabled: true
+        isEnabled: true,
+        priority: 'medium' // default priority
       };
       setTrainingData([...trainingData, newExample]);
     }
@@ -303,6 +342,14 @@ function Admin() {
     setTrainingData(trainingData.map(example =>
       example.id === id
         ? { ...example, isEnabled: !example.isEnabled }
+        : example
+    ));
+  };
+
+  const handlePriorityChange = (id: string, priority: 'high' | 'medium' | 'low') => {
+    setTrainingData(trainingData.map(example =>
+      example.id === id
+        ? { ...example, priority }
         : example
     ));
   };
@@ -403,14 +450,27 @@ function Admin() {
       ) : (
         trainingData.map(example => (
           <TrainingExample key={example.id}>
-            <Toggle>
-              <ToggleInput
-                type="checkbox"
-                checked={example.isEnabled}
-                onChange={() => handleToggle(example.id)}
-              />
-              {example.isEnabled ? 'Enabled' : 'Disabled'}
-            </Toggle>
+            <ControlsGroup>
+              <LeftControls>
+                <Toggle>
+                  <ToggleInput
+                    type="checkbox"
+                    checked={example.isEnabled}
+                    onChange={() => handleToggle(example.id)}
+                  />
+                  {example.isEnabled ? 'Enabled' : 'Disabled'}
+                </Toggle>
+              </LeftControls>
+              <PrioritySelect
+                value={example.priority}
+                onChange={(e) => handlePriorityChange(example.id, e.target.value as 'high' | 'medium' | 'low')}
+                className={example.priority}
+              >
+                <option value="high">High Priority</option>
+                <option value="medium">Medium Priority</option>
+                <option value="low">Low Priority</option>
+              </PrioritySelect>
+            </ControlsGroup>
             <p style={{ opacity: example.isEnabled ? 1 : 0.5 }}>{example.context}</p>
             <ButtonGroup>
               <Button onClick={() => handleEdit(example)}>Edit</Button>

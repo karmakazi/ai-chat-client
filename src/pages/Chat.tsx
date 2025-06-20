@@ -267,9 +267,25 @@ function Chat() {
     const enabledTraining = trainingData.filter(example => example.isEnabled);
     if (!enabledTraining.length) return '';
 
-    return 'Here is some context to inform your responses:\n\n' +
-      enabledTraining.map(example => example.context).join('\n\n') +
-      '\n\nPlease use this context to inform your response to the following:\n';
+    // Sort by priority (high -> medium -> low)
+    const sortedTraining = [...enabledTraining].sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+
+    const formatByPriority = (examples: TrainingData[], priority: 'high' | 'medium' | 'low') => {
+      const filtered = examples.filter(ex => ex.priority === priority);
+      if (!filtered.length) return '';
+      
+      return `${priority.toUpperCase()} PRIORITY CONTEXT:\n` +
+        filtered.map(example => example.context).join('\n\n') + '\n\n';
+    };
+
+    return 'Here is some context to inform your responses, ordered by priority:\n\n' +
+      formatByPriority(sortedTraining, 'high') +
+      formatByPriority(sortedTraining, 'medium') +
+      formatByPriority(sortedTraining, 'low') +
+      'Please use this context to inform your response to the following:\n';
   };
 
   const handleSubmit = async (e: FormEvent) => {
