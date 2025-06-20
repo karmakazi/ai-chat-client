@@ -1,7 +1,7 @@
 import React, { useState, FormEvent, useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
-import { sendMessage } from '../services/gemini';
+import { sendMessage, getSelectedModel } from '../services/modelService';
 import { TrainingData } from './Admin';
 
 interface Settings {
@@ -76,6 +76,27 @@ const ChatWindow = styled.div`
   &:hover {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
   }
+`;
+
+const ChatHeader = styled.div`
+  padding: 15px 20px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f8f9fa;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+const ModelBadge = styled.div`
+  padding: 5px 10px;
+  background-color: #e9ecef;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  color: #495057;
+  display: flex;
+  align-items: center;
+  gap: 5px;
 `;
 
 const MessageList = styled.div`
@@ -262,10 +283,16 @@ function Chat() {
   };
 
   const formatTrainingDataForPrompt = (trainingData: TrainingData[]) => {
-    if (!trainingData.length) return '';
+    if (!trainingData.length) {
+      console.log('No training data found');
+      return '';
+    }
     
     const enabledTraining = trainingData.filter(example => example.isEnabled);
-    if (!enabledTraining.length) return '';
+    if (!enabledTraining.length) {
+      console.log('No enabled training examples found');
+      return '';
+    }
 
     // Sort by priority (high -> medium -> low)
     const sortedTraining = [...enabledTraining].sort((a, b) => {
@@ -281,51 +308,72 @@ function Chat() {
         filtered.map(example => example.context).join('\n\n') + '\n\n';
     };
 
-    return 'Here is some context to inform your responses, ordered by priority:\n\n' +
+    const formattedPrompt = 'Here is some context to inform your responses, ordered by priority:\n\n' +
       formatByPriority(sortedTraining, 'high') +
       formatByPriority(sortedTraining, 'medium') +
       formatByPriority(sortedTraining, 'low') +
       'Please use this context to inform your response to the following:\n';
+
+    console.log('Formatted training data:', formattedPrompt);
+    return formattedPrompt;
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    const userMessage: ChatMessage = { text: input, isUser: true };
-    setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
+    const userMessage = input.trim();
     setInput('');
     setIsLoading(true);
 
+    // Add user message to chat
+    setMessages(prev => [...prev, { text: userMessage, isUser: true }]);
+
     try {
-      const savedTrainingData = localStorage.getItem('chatTrainingData');
-      const trainingData: TrainingData[] = savedTrainingData ? JSON.parse(savedTrainingData) : [];
+      // Get training examples
+      const storedExamples = localStorage.getItem('trainingExamples');
+      console.log('Retrieved training examples from localStorage:', storedExamples);
+      const trainingData: TrainingData[] = storedExamples ? JSON.parse(storedExamples) : [];
       
+      // Build the prompt
       const personalityPrompt = getPersonalityPrompt(settings);
       const lengthPrompt = getLengthPrompt(settings);
-      const trainingContext = formatTrainingDataForPrompt(trainingData);
+      const trainingPrompt = formatTrainingDataForPrompt(trainingData);
       
-      const prompt = `${personalityPrompt}${lengthPrompt}${trainingContext}${currentInput}`;
+      const fullPrompt = `${personalityPrompt}${lengthPrompt}${trainingPrompt}User: ${userMessage}`;
+      console.log('Full prompt being sent:', fullPrompt);
       
-      const botResponse = await sendMessage(prompt);
-      const botMessage: ChatMessage = { text: botResponse, isUser: false };
-      setMessages(prev => [...prev, botMessage]);
+      // Get the currently selected model
+      const selectedModel = getSelectedModel();
+      console.log('Selected model:', selectedModel);
+      
+      // Send message using the model service with the selected model
+      const response = await sendMessage(fullPrompt, selectedModel);
+      
+      // Add AI response to chat
+      setMessages(prev => [...prev, { text: response, isUser: false }]);
     } catch (error) {
       console.error('Error in chat:', error);
-      const errorMessage: ChatMessage = { 
-        text: 'Sorry, something went wrong. Please try again.', 
+      setMessages(prev => [...prev, { 
+        text: "I apologize, but I encountered an error. Please try again.",
         isUser: false 
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      }]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const selectedModel = getSelectedModel();
+
   return (
     <AppContainer>
       <ChatWindow>
+        <ChatHeader>
+          <h2 style={{ margin: 0, fontSize: '1.2rem' }}>Chat Interface</h2>
+          <ModelBadge>
+            🤖 {selectedModel.toUpperCase()}
+          </ModelBadge>
+        </ChatHeader>
         <MessageList ref={messageListRef}>
           {messages.map((msg, index) => (
             <Message 

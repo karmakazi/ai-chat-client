@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
+import { ModelType, getSelectedModel, setSelectedModel } from '../services/modelService';
 
 const AdminContainer = styled.div`
   padding: 2rem;
@@ -239,6 +240,14 @@ const LeftControls = styled.div`
   align-items: center;
 `;
 
+const ModelSelect = styled(Select)`
+  max-width: 200px;
+`;
+
+const ModelSection = styled(SettingsSection)`
+  margin-bottom: 2rem;
+`;
+
 export interface TrainingData {
   id: string;
   context: string;
@@ -262,8 +271,8 @@ interface Settings {
   response: ResponseSettings;
 }
 
-const STORAGE_KEY = 'chatTrainingData';
 const SETTINGS_STORAGE_KEY = 'chatSettings';
+const TRAINING_STORAGE_KEY = 'trainingExamples';
 
 const DEFAULT_SETTINGS = {
   personality: {
@@ -279,7 +288,7 @@ const DEFAULT_SETTINGS = {
 
 function Admin() {
   const [trainingData, setTrainingData] = useState<TrainingData[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(TRAINING_STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -290,9 +299,10 @@ function Admin() {
 
   const [context, setContext] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModelState] = useState<ModelType>(getSelectedModel());
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(trainingData));
+    localStorage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(trainingData));
   }, [trainingData]);
 
   useEffect(() => {
@@ -364,9 +374,23 @@ function Admin() {
     }));
   };
 
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newModel = e.target.value as ModelType;
+    setSelectedModelState(newModel);
+    setSelectedModel(newModel);
+  };
+
   return (
     <AdminContainer>
-      <Title>Chat Settings & Training Data</Title>
+      <Title>Admin Panel</Title>
+      
+      <ModelSection>
+        <Label>Model Selection</Label>
+        <ModelSelect value={selectedModel} onChange={handleModelChange}>
+          <option value="gemini">Google Gemini</option>
+          <option value="claude">Anthropic Claude</option>
+        </ModelSelect>
+      </ModelSection>
 
       <SettingsGrid>
         <SettingsSection>
