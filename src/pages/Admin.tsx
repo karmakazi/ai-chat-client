@@ -117,24 +117,149 @@ const ButtonGroup = styled.div`
   margin-top: 1rem;
 `;
 
+const SettingsSection = styled.div`
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+`;
+
+const SettingsGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const Select = styled.select`
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+  margin-bottom: 1rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #0066cc;
+  }
+`;
+
+const Input = styled.input`
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+  margin-bottom: 1rem;
+  
+  &:focus {
+    outline: none;
+    border-color: #0066cc;
+  }
+`;
+
+const Toggle = styled.label`
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 0.5rem;
+`;
+
+const ToggleInput = styled.input`
+  appearance: none;
+  width: 50px;
+  height: 26px;
+  background: #e0e0e0;
+  border-radius: 13px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+
+  &:checked {
+    background: #0066cc;
+  }
+
+  &:before {
+    content: '';
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    background: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s;
+  }
+
+  &:checked:before {
+    transform: translateX(24px);
+  }
+`;
+
 export interface TrainingData {
   id: string;
   context: string;
+  isEnabled: boolean;
+}
+
+interface PersonalitySettings {
+  tone: string;
+  customTone: string;
+}
+
+interface ResponseSettings {
+  lengthPreference: string;
+  minWords: number;
+  maxWords: number;
+}
+
+interface Settings {
+  personality: PersonalitySettings;
+  response: ResponseSettings;
 }
 
 const STORAGE_KEY = 'chatTrainingData';
+const SETTINGS_STORAGE_KEY = 'chatSettings';
+
+const DEFAULT_SETTINGS = {
+  personality: {
+    tone: 'professional',
+    customTone: '',
+  },
+  response: {
+    lengthPreference: 'balanced',
+    minWords: 50,
+    maxWords: 200,
+  }
+};
 
 function Admin() {
   const [trainingData, setTrainingData] = useState<TrainingData[]>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   });
+
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+  });
+
   const [context, setContext] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trainingData));
   }, [trainingData]);
+
+  useEffect(() => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  }, [settings]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,7 +279,8 @@ function Admin() {
     } else {
       const newExample: TrainingData = {
         id: Date.now().toString(),
-        context
+        context,
+        isEnabled: true
       };
       setTrainingData([...trainingData, newExample]);
     }
@@ -173,13 +299,90 @@ function Admin() {
     }
   };
 
+  const handleToggle = (id: string) => {
+    setTrainingData(trainingData.map(example =>
+      example.id === id
+        ? { ...example, isEnabled: !example.isEnabled }
+        : example
+    ));
+  };
+
+  const handleSettingsChange = (section: 'personality' | 'response', field: string, value: string | number) => {
+    setSettings((prev: Settings) => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+
   return (
     <AdminContainer>
-      <Title>Training Data Management</Title>
+      <Title>Chat Settings & Training Data</Title>
+
+      <SettingsGrid>
+        <SettingsSection>
+          <Label>Personality Settings</Label>
+          <Select
+            value={settings.personality.tone}
+            onChange={(e) => handleSettingsChange('personality', 'tone', e.target.value)}
+          >
+            <option value="professional">Professional</option>
+            <option value="casual">Casual</option>
+            <option value="friendly">Friendly</option>
+            <option value="technical">Technical</option>
+            <option value="custom">Custom</option>
+          </Select>
+
+          {settings.personality.tone === 'custom' && (
+            <TextArea
+              value={settings.personality.customTone}
+              onChange={(e) => handleSettingsChange('personality', 'customTone', e.target.value)}
+              placeholder="Describe the custom personality/tone you want the chatbot to have..."
+              style={{ marginTop: '1rem' }}
+            />
+          )}
+        </SettingsSection>
+
+        <SettingsSection>
+          <Label>Response Length</Label>
+          <Select
+            value={settings.response.lengthPreference}
+            onChange={(e) => handleSettingsChange('response', 'lengthPreference', e.target.value)}
+          >
+            <option value="brief">Brief</option>
+            <option value="balanced">Balanced</option>
+            <option value="detailed">Detailed</option>
+            <option value="custom">Custom</option>
+          </Select>
+
+          {settings.response.lengthPreference === 'custom' && (
+            <div>
+              <Label>Min Words</Label>
+              <Input
+                type="number"
+                value={settings.response.minWords}
+                onChange={(e) => handleSettingsChange('response', 'minWords', parseInt(e.target.value))}
+                min="10"
+                max="1000"
+              />
+              <Label>Max Words</Label>
+              <Input
+                type="number"
+                value={settings.response.maxWords}
+                onChange={(e) => handleSettingsChange('response', 'maxWords', parseInt(e.target.value))}
+                min="10"
+                max="1000"
+              />
+            </div>
+          )}
+        </SettingsSection>
+      </SettingsGrid>
       
       <Form onSubmit={handleSubmit}>
         <div>
-          <Label htmlFor="context">Context</Label>
+          <Label htmlFor="context">Training Context</Label>
           <TextArea
             id="context"
             value={context}
@@ -200,7 +403,15 @@ function Admin() {
       ) : (
         trainingData.map(example => (
           <TrainingExample key={example.id}>
-            <p>{example.context}</p>
+            <Toggle>
+              <ToggleInput
+                type="checkbox"
+                checked={example.isEnabled}
+                onChange={() => handleToggle(example.id)}
+              />
+              {example.isEnabled ? 'Enabled' : 'Disabled'}
+            </Toggle>
+            <p style={{ opacity: example.isEnabled ? 1 : 0.5 }}>{example.context}</p>
             <ButtonGroup>
               <Button onClick={() => handleEdit(example)}>Edit</Button>
               <DeleteButton onClick={() => handleDelete(example.id)}>Delete</DeleteButton>
