@@ -232,20 +232,23 @@ const SendButton = styled.button`
 `;
 
 interface ChatMessage {
-    text: string;
-    isUser: boolean;
+  text: string;
+  isUser: boolean;
+  timestamp: number;
+  role: 'user' | 'assistant' | 'system';
+}
+
+interface APIMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
 }
 
 function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
-
-  const [settings, setSettings] = useState<Settings>(() => {
-    const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
-  });
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
 
   useEffect(() => {
     if (messageListRef.current) {
@@ -320,11 +323,16 @@ function Chat() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!inputValue.trim()) return;
 
-    const newMessage: ChatMessage = { text: input, isUser: true };
+    const newMessage: ChatMessage = { 
+      text: inputValue, 
+      isUser: true,
+      timestamp: Date.now(),
+      role: 'user'
+    };
     setMessages(prev => [...prev, newMessage]);
-    setInput('');
+    setInputValue('');
     setIsLoading(true);
 
     try {
@@ -338,16 +346,25 @@ function Chat() {
       const lengthPrompt = getLengthPrompt(settings);
       
       // Combine all prompts
-      const fullPrompt = `${trainingPrompt}\n\n${personalityPrompt}\n\n${lengthPrompt}\n\n${input}`;
+      const fullPrompt = `${trainingPrompt}\n\n${personalityPrompt}\n\n${lengthPrompt}\n\n${inputValue}`;
+      
+      // Convert last 10 messages to API format
+      const messageHistory = messages.slice(-10).map(msg => ({
+        role: msg.role,
+        content: msg.text
+      }));
       
       console.log('🔄 Sending message with model:', selectedModel);
       console.log('📝 Training data:', trainingPrompt);
+      console.log('💬 Message history:', messageHistory);
       
-      const response = await sendMessage(fullPrompt, selectedModel, trainingPrompt);
+      const response = await sendMessage(fullPrompt, selectedModel, trainingPrompt, messageHistory);
       
       const botMessage: ChatMessage = {
         text: typeof response === 'string' ? response : response.message,
-        isUser: false
+        isUser: false,
+        timestamp: Date.now(),
+        role: 'assistant'
       };
       
       setMessages(prev => [...prev, botMessage]);
@@ -355,7 +372,9 @@ function Chat() {
       console.error('Error sending message:', error);
       const errorMessage: ChatMessage = {
         text: 'Sorry, there was an error processing your message. Please try again.',
-        isUser: false
+        isUser: false,
+        timestamp: Date.now(),
+        role: 'assistant'
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -400,14 +419,14 @@ function Chat() {
         <InputForm onSubmit={handleSubmit}>
           <Input
             type="text"
-            value={input}
-            onChange={e => setInput(e.target.value)}
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
             placeholder="Type a message..."
             disabled={isLoading}
           />
           <SendButton 
             type="submit" 
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || !inputValue.trim()}
           >
             {isLoading ? 'Sending...' : 'Send'}
           </SendButton>

@@ -6,19 +6,45 @@ export type ModelType = 'gemini' | 'claude' | 'chatgpt';
 
 export const DEFAULT_MODEL: ModelType = 'gemini';
 
-export async function sendMessage(message: string, model: ModelType = DEFAULT_MODEL, trainingData?: string) {
+export interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+export async function sendMessage(
+  message: string,
+  model: ModelType = DEFAULT_MODEL,
+  trainingData?: string,
+  messageHistory: Message[] = []
+) {
   console.log(`🤖 Using model: ${model.toUpperCase()}`);
+  console.log('📜 Message history:', messageHistory);
+
   switch (model) {
     case 'claude':
-      return sendClaudeMessage(message);
+      // For Claude, we'll concatenate history into the prompt
+      const claudeHistory = messageHistory
+        .map(msg => `${msg.role === 'user' ? 'Human' : 'Assistant'}: ${msg.content}`)
+        .join('\n');
+      const claudePrompt = claudeHistory ? `${claudeHistory}\nHuman: ${message}` : message;
+      return sendClaudeMessage(claudePrompt);
+
     case 'chatgpt':
-      const messages: ChatGPTMessage[] = [
+      // For ChatGPT, we'll convert messages to its format
+      const chatGPTMessages: ChatGPTMessage[] = [
+        ...messageHistory,
         { role: 'user', content: message }
       ];
-      return sendChatGPTMessage(messages, trainingData);
+      return sendChatGPTMessage(chatGPTMessages, trainingData);
+
     case 'gemini':
     default:
-      return sendGeminiMessage(message);
+      // For Gemini, we'll concatenate history into the prompt
+      const geminiHistory = messageHistory
+        .map(msg => `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.content}`)
+        .join('\n');
+      const geminiPrompt = geminiHistory ? `${geminiHistory}\nUser: ${message}` : message;
+      return sendGeminiMessage(geminiPrompt);
   }
 }
 
