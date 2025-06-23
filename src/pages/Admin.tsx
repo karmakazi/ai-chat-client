@@ -436,9 +436,9 @@ function Admin() {
         <SettingsSection>
           <Label>Model Settings</Label>
           <Select value={selectedModel} onChange={handleModelChange}>
-            <option value="gemini">Gemini</option>
-            <option value="claude">Claude</option>
-            <option value="chatgpt">ChatGPT</option>
+            <option value="gemini">Gemini (1.5 Flash)</option>
+            <option value="claude">Claude (3 Opus)</option>
+            <option value="chatgpt">ChatGPT (3.5 Turbo)</option>
           </Select>
 
           <div style={{ marginTop: '1rem' }}>
