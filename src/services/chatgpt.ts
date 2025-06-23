@@ -10,7 +10,7 @@ export interface ChatGPTMessage {
   content: string;
 }
 
-export async function sendMessage(messages: ChatGPTMessage[], trainingData?: string) {
+export async function sendMessage(messages: ChatGPTMessage[], trainingData?: string, temperature: number = 0.7) {
   try {
     // If training data exists, prepend it to the system message or create one
     if (trainingData) {
@@ -25,7 +25,7 @@ export async function sendMessage(messages: ChatGPTMessage[], trainingData?: str
     const response = await openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: messages,
-      temperature: 0.7,
+      temperature: temperature,
     });
 
     return {

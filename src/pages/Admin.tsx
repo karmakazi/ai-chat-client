@@ -10,7 +10,10 @@ import {
   setMessageHistoryLength,
   DEFAULT_MESSAGE_HISTORY_ENABLED,
   DEFAULT_MESSAGE_HISTORY_LENGTH,
-  MAX_MESSAGE_HISTORY_LENGTH
+  MAX_MESSAGE_HISTORY_LENGTH,
+  getTemperature,
+  setTemperature,
+  DEFAULT_TEMPERATURE
 } from '../services/modelService';
 
 const AdminContainer = styled.div`
@@ -259,6 +262,55 @@ const ModelSection = styled(SettingsSection)`
   margin-bottom: 2rem;
 `;
 
+const Slider = styled.input`
+  width: 100%;
+  margin: 10px 0;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: #e0e0e0;
+  outline: none;
+  
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.2);
+      background: #0056b3;
+    }
+  }
+  
+  &::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: #007bff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      transform: scale(1.2);
+      background: #0056b3;
+    }
+  }
+`;
+
+const SliderValue = styled.div`
+  text-align: center;
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 4px;
+`;
+
 export interface TrainingData {
   id: string;
   context: string;
@@ -315,6 +367,7 @@ function Admin() {
   const [selectedModel, setSelectedModelState] = useState<ModelType>(getSelectedModel());
   const [messageHistoryEnabled, setMessageHistoryEnabledState] = useState(getMessageHistoryEnabled());
   const [messageHistoryLength, setMessageHistoryLengthState] = useState(getMessageHistoryLength());
+  const [temperature, setTemperatureState] = useState(getTemperature());
 
   const [context, setContext] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -337,6 +390,7 @@ function Admin() {
     setSelectedModelState(getSelectedModel());
     setMessageHistoryEnabledState(getMessageHistoryEnabled());
     setMessageHistoryLengthState(getMessageHistoryLength());
+    setTemperatureState(getTemperature());
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -428,6 +482,12 @@ function Admin() {
     handleSettingsChange('messageHistory', 'length', length);
   };
 
+  const handleTemperatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    setTemperatureState(value);
+    setTemperature(value);
+  };
+
   return (
     <AdminContainer>
       <Title>Admin Settings</Title>
@@ -463,6 +523,29 @@ function Admin() {
                 </Select>
               </div>
             )}
+          </div>
+
+          <div style={{ marginTop: '1rem' }}>
+            <Label>Temperature</Label>
+            <Slider
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={temperature}
+              onChange={handleTemperatureChange}
+            />
+            <SliderValue>
+              {temperature} - {temperature === 0 
+                ? 'Deterministic' 
+                : temperature < 0.3 
+                  ? 'Conservative' 
+                  : temperature < 0.7 
+                    ? 'Balanced' 
+                    : temperature < 0.9 
+                      ? 'Creative' 
+                      : 'Very Creative'}
+            </SliderValue>
           </div>
         </SettingsSection>
 

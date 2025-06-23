@@ -10,15 +10,28 @@ export const DEFAULT_MODEL: ModelType = 'gemini';
 const MODEL_PREFERENCE_KEY = 'selectedModel';
 const MESSAGE_HISTORY_ENABLED_KEY = 'messageHistoryEnabled';
 const MESSAGE_HISTORY_LENGTH_KEY = 'messageHistoryLength';
+const TEMPERATURE_KEY = 'temperature';
 
 // Default settings
 export const DEFAULT_MESSAGE_HISTORY_ENABLED = false;
 export const DEFAULT_MESSAGE_HISTORY_LENGTH = 5;
 export const MAX_MESSAGE_HISTORY_LENGTH = 10;
+export const DEFAULT_TEMPERATURE = 0.7;
 
 export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+export function getTemperature(): number {
+  const stored = localStorage.getItem(TEMPERATURE_KEY);
+  return stored ? parseFloat(stored) : DEFAULT_TEMPERATURE;
+}
+
+export function setTemperature(temp: number) {
+  // Ensure temperature is between 0 and 1
+  const normalizedTemp = Math.max(0, Math.min(1, temp));
+  localStorage.setItem(TEMPERATURE_KEY, normalizedTemp.toString());
 }
 
 export async function sendMessage(
@@ -28,6 +41,10 @@ export async function sendMessage(
   messageHistory: Message[] = []
 ) {
   console.log(`🤖 Using model: ${model.toUpperCase()}`);
+  
+  // Get temperature setting
+  const temperature = getTemperature();
+  console.log(`🌡️ Temperature: ${temperature}`);
   
   // Apply message history settings
   const historyEnabled = getMessageHistoryEnabled();
@@ -44,15 +61,15 @@ export async function sendMessage(
         .map(msg => `${msg.role === 'user' ? 'Human' : 'Assistant'}: ${msg.content}`)
         .join('\n');
       const claudePrompt = claudeHistory ? `${claudeHistory}\nHuman: ${message}` : message;
-      return sendClaudeMessage(claudePrompt);
+      return sendClaudeMessage(claudePrompt, temperature);
 
     case 'chatgpt':
-      // For ChatGPT, we'll convert messages to its format
+      // For ChatGPT, we'll convert messages to its format and scale temperature to 0-2 range
       const chatGPTMessages: ChatGPTMessage[] = [
         ...effectiveHistory,
         { role: 'user', content: message }
       ];
-      return sendChatGPTMessage(chatGPTMessages, trainingData);
+      return sendChatGPTMessage(chatGPTMessages, trainingData, temperature * 2); // Scale to 0-2 range
 
     case 'gemini':
     default:
@@ -61,7 +78,7 @@ export async function sendMessage(
         .map(msg => `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.content}`)
         .join('\n');
       const geminiPrompt = geminiHistory ? `${geminiHistory}\nUser: ${message}` : message;
-      return sendGeminiMessage(geminiPrompt);
+      return sendGeminiMessage(geminiPrompt, temperature);
   }
 }
 

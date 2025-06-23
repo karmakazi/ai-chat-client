@@ -11,7 +11,7 @@ const anthropic = new Anthropic({
   dangerouslyAllowBrowser: true // Allow browser usage
 });
 
-export async function sendMessage(message: string) {
+export async function sendMessage(message: string, temperature: number = 0.7) {
   try {
     // Split the message into system and user parts
     const parts = message.split('User: ');
@@ -25,7 +25,8 @@ export async function sendMessage(message: string) {
     const response = await anthropic.messages.create({
       model: "claude-3-opus-20240229",
       max_tokens: 1024,
-      messages: [{ role: "user", content: fullMessage }]
+      messages: [{ role: "user", content: fullMessage }],
+      temperature: temperature,
     });
     
     // Handle different content block types

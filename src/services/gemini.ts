@@ -10,10 +10,15 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-export async function sendMessage(message: string) {
+export async function sendMessage(message: string, temperature: number = 0.7) {
   try {
     console.log('📤 Sending request to Gemini...');
-    const result = await model.generateContent(message);
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: message }] }],
+      generationConfig: {
+        temperature: temperature,
+      },
+    });
     const response = await result.response;
     const text = response.text();
     console.log('📥 Received response from Gemini');
