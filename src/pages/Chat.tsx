@@ -320,46 +320,49 @@ function Chat() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim()) return;
 
-    const userMessage = input.trim();
+    const newMessage: ChatMessage = { text: input, isUser: true };
+    setMessages(prev => [...prev, newMessage]);
     setInput('');
     setIsLoading(true);
 
-    // Add user message to chat
-    setMessages(prev => [...prev, { text: userMessage, isUser: true }]);
-
     try {
-      // Get training examples
-      const storedExamples = localStorage.getItem('trainingExamples');
-      console.log('Retrieved training examples from localStorage:', storedExamples);
-      const trainingData: TrainingData[] = storedExamples ? JSON.parse(storedExamples) : [];
+      const settings = JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) || JSON.stringify(DEFAULT_SETTINGS));
+      const trainingExamples = JSON.parse(localStorage.getItem('trainingExamples') || '[]');
+      const selectedModel = getSelectedModel();
       
-      // Build the prompt
+      // Format training data
+      const trainingPrompt = formatTrainingDataForPrompt(trainingExamples);
       const personalityPrompt = getPersonalityPrompt(settings);
       const lengthPrompt = getLengthPrompt(settings);
-      const trainingPrompt = formatTrainingDataForPrompt(trainingData);
       
-      const fullPrompt = `${personalityPrompt}${lengthPrompt}${trainingPrompt}User: ${userMessage}`;
-      console.log('Full prompt being sent:', fullPrompt);
+      // Combine all prompts
+      const fullPrompt = `${trainingPrompt}\n\n${personalityPrompt}\n\n${lengthPrompt}\n\n${input}`;
       
-      // Get the currently selected model
-      const selectedModel = getSelectedModel();
-      console.log('Selected model:', selectedModel);
+      console.log('🔄 Sending message with model:', selectedModel);
+      console.log('📝 Training data:', trainingPrompt);
       
-      // Send message using the model service with the selected model
-      const response = await sendMessage(fullPrompt, selectedModel);
+      const response = await sendMessage(fullPrompt, selectedModel, trainingPrompt);
       
-      // Add AI response to chat
-      setMessages(prev => [...prev, { text: response, isUser: false }]);
+      const botMessage: ChatMessage = {
+        text: typeof response === 'string' ? response : response.message,
+        isUser: false
+      };
+      
+      setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error in chat:', error);
-      setMessages(prev => [...prev, { 
-        text: "I apologize, but I encountered an error. Please try again.",
-        isUser: false 
-      }]);
+      console.error('Error sending message:', error);
+      const errorMessage: ChatMessage = {
+        text: 'Sorry, there was an error processing your message. Please try again.',
+        isUser: false
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      if (messageListRef.current) {
+        messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+      }
     }
   };
 

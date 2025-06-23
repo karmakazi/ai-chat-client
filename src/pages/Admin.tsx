@@ -384,13 +384,22 @@ function Admin() {
     <AdminContainer>
       <Title>Admin Panel</Title>
       
-      <ModelSection>
-        <Label>Model Selection</Label>
-        <ModelSelect value={selectedModel} onChange={handleModelChange}>
-          <option value="gemini">Google Gemini</option>
-          <option value="claude">Anthropic Claude</option>
-        </ModelSelect>
-      </ModelSection>
+      <SettingsSection>
+        <h2>Model Settings</h2>
+        <SettingsGrid>
+          <div>
+            <Label>Select Model</Label>
+            <Select 
+              value={selectedModel} 
+              onChange={handleModelChange}
+            >
+              <option value="gemini">Google Gemini</option>
+              <option value="claude">Anthropic Claude</option>
+              <option value="chatgpt">OpenAI ChatGPT</option>
+            </Select>
+          </div>
+        </SettingsGrid>
+      </SettingsSection>
 
       <SettingsGrid>
         <SettingsSection>
