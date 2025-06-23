@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import styled from '@emotion/styled';
-import { ModelType, getSelectedModel, setSelectedModel } from '../services/modelService';
+import { 
+  ModelType, 
+  getSelectedModel, 
+  setSelectedModel,
+  getMessageHistoryEnabled,
+  setMessageHistoryEnabled,
+  getMessageHistoryLength,
+  setMessageHistoryLength,
+  DEFAULT_MESSAGE_HISTORY_ENABLED,
+  DEFAULT_MESSAGE_HISTORY_LENGTH,
+  MAX_MESSAGE_HISTORY_LENGTH
+} from '../services/modelService';
 
 const AdminContainer = styled.div`
   padding: 2rem;
@@ -269,21 +280,29 @@ interface ResponseSettings {
 interface Settings {
   personality: PersonalitySettings;
   response: ResponseSettings;
+  messageHistory: {
+    enabled: boolean;
+    length: number;
+  };
 }
 
 const SETTINGS_STORAGE_KEY = 'chatSettings';
 const TRAINING_STORAGE_KEY = 'trainingExamples';
 
-const DEFAULT_SETTINGS = {
+const defaultSettings: Settings = {
   personality: {
     tone: 'professional',
     customTone: '',
   },
   response: {
-    lengthPreference: 'balanced',
+    lengthPreference: 'brief',
     minWords: 50,
-    maxWords: 200,
-  }
+    maxWords: 150,
+  },
+  messageHistory: {
+    enabled: DEFAULT_MESSAGE_HISTORY_ENABLED,
+    length: DEFAULT_MESSAGE_HISTORY_LENGTH,
+  },
 };
 
 function Admin() {
@@ -292,14 +311,13 @@ function Admin() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
-  });
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [selectedModel, setSelectedModelState] = useState<ModelType>(getSelectedModel());
+  const [messageHistoryEnabled, setMessageHistoryEnabledState] = useState(getMessageHistoryEnabled());
+  const [messageHistoryLength, setMessageHistoryLengthState] = useState(getMessageHistoryLength());
 
   const [context, setContext] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedModel, setSelectedModelState] = useState<ModelType>(getSelectedModel());
 
   useEffect(() => {
     localStorage.setItem(TRAINING_STORAGE_KEY, JSON.stringify(trainingData));
@@ -308,6 +326,18 @@ function Admin() {
   useEffect(() => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
+
+  useEffect(() => {
+    // Load saved settings from localStorage
+    const savedSettings = localStorage.getItem('settings');
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
+    }
+    
+    setSelectedModelState(getSelectedModel());
+    setMessageHistoryEnabledState(getMessageHistoryEnabled());
+    setMessageHistoryLengthState(getMessageHistoryLength());
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -364,65 +394,76 @@ function Admin() {
     ));
   };
 
-  const handleSettingsChange = (section: 'personality' | 'response', field: string, value: string | number) => {
-    setSettings((prev: Settings) => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
-      }
-    }));
+  const handleSettingsChange = (section: keyof Settings, field: string, value: string | number | boolean) => {
+    setSettings(prev => {
+      const newSettings = {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [field]: value,
+        },
+      };
+      localStorage.setItem('settings', JSON.stringify(newSettings));
+      return newSettings;
+    });
   };
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newModel = e.target.value as ModelType;
-    setSelectedModelState(newModel);
-    setSelectedModel(newModel);
+    const model = e.target.value as ModelType;
+    setSelectedModelState(model);
+    setSelectedModel(model);
+  };
+
+  const handleMessageHistoryToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const enabled = e.target.checked;
+    setMessageHistoryEnabledState(enabled);
+    setMessageHistoryEnabled(enabled);
+    handleSettingsChange('messageHistory', 'enabled', enabled);
+  };
+
+  const handleMessageHistoryLengthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const length = parseInt(e.target.value, 10);
+    setMessageHistoryLengthState(length);
+    setMessageHistoryLength(length);
+    handleSettingsChange('messageHistory', 'length', length);
   };
 
   return (
     <AdminContainer>
-      <Title>Admin Panel</Title>
+      <Title>Admin Settings</Title>
       
-      <SettingsSection>
-        <h2>Model Settings</h2>
-        <SettingsGrid>
-          <div>
-            <Label>Select Model</Label>
-            <Select 
-              value={selectedModel} 
-              onChange={handleModelChange}
-            >
-              <option value="gemini">Google Gemini</option>
-              <option value="claude">Anthropic Claude</option>
-              <option value="chatgpt">OpenAI ChatGPT</option>
-            </Select>
-          </div>
-        </SettingsGrid>
-      </SettingsSection>
-
       <SettingsGrid>
         <SettingsSection>
-          <Label>Personality Settings</Label>
-          <Select
-            value={settings.personality.tone}
-            onChange={(e) => handleSettingsChange('personality', 'tone', e.target.value)}
-          >
-            <option value="professional">Professional</option>
-            <option value="casual">Casual</option>
-            <option value="friendly">Friendly</option>
-            <option value="technical">Technical</option>
-            <option value="custom">Custom</option>
+          <Label>Model Settings</Label>
+          <Select value={selectedModel} onChange={handleModelChange}>
+            <option value="gemini">Gemini</option>
+            <option value="claude">Claude</option>
+            <option value="chatgpt">ChatGPT</option>
           </Select>
 
-          {settings.personality.tone === 'custom' && (
-            <TextArea
-              value={settings.personality.customTone}
-              onChange={(e) => handleSettingsChange('personality', 'customTone', e.target.value)}
-              placeholder="Describe the custom personality/tone you want the chatbot to have..."
-              style={{ marginTop: '1rem' }}
-            />
-          )}
+          <div style={{ marginTop: '1rem' }}>
+            <Toggle>
+              <ToggleInput
+                type="checkbox"
+                checked={messageHistoryEnabled}
+                onChange={handleMessageHistoryToggle}
+              />
+              Enable Message History
+            </Toggle>
+            
+            {messageHistoryEnabled && (
+              <div style={{ marginTop: '0.5rem' }}>
+                <Select
+                  value={messageHistoryLength}
+                  onChange={handleMessageHistoryLengthChange}
+                >
+                  {Array.from({ length: MAX_MESSAGE_HISTORY_LENGTH + 1 }, (_, i) => (
+                    <option key={i} value={i}>{i} messages</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
         </SettingsSection>
 
         <SettingsSection>
@@ -458,8 +499,31 @@ function Admin() {
             </div>
           )}
         </SettingsSection>
+
+        <SettingsSection>
+          <Label>Personality Settings</Label>
+          <Select
+            value={settings.personality.tone}
+            onChange={(e) => handleSettingsChange('personality', 'tone', e.target.value)}
+          >
+            <option value="professional">Professional</option>
+            <option value="casual">Casual</option>
+            <option value="friendly">Friendly</option>
+            <option value="technical">Technical</option>
+            <option value="custom">Custom</option>
+          </Select>
+          
+          {settings.personality.tone === 'custom' && (
+            <TextArea
+              value={settings.personality.customTone}
+              onChange={(e) => handleSettingsChange('personality', 'customTone', e.target.value)}
+              placeholder="Describe the custom personality/tone you want the chatbot to have..."
+              style={{ marginTop: '1rem' }}
+            />
+          )}
+        </SettingsSection>
       </SettingsGrid>
-      
+
       <Form onSubmit={handleSubmit}>
         <div>
           <Label htmlFor="context">Training Context</Label>
