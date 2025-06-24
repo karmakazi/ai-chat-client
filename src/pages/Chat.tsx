@@ -1,6 +1,7 @@
 import React, { useState, FormEvent, useEffect, useRef } from 'react';
 import styled from '@emotion/styled';
 import { keyframes } from '@emotion/react';
+import SendIcon from '@mui/icons-material/Send';
 import { sendMessage, getSelectedModel } from '../services/modelService';
 import { TrainingData } from './Admin';
 
@@ -172,17 +173,6 @@ const Dot = styled.div`
   }
 `;
 
-const InputForm = styled.form`
-  display: flex;
-  padding: 20px;
-  border-top: 1px solid #ddd;
-  transition: all 0.3s ease;
-  
-  &:focus-within {
-    background-color: #f8f9fa;
-  }
-`;
-
 const Input = styled.input`
   flex-grow: 1;
   border: 1px solid #ccc;
@@ -197,10 +187,9 @@ const Input = styled.input`
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
     transform: translateY(-1px);
   }
-  
-  &:disabled {
-    background-color: #f8f9fa;
-    cursor: not-allowed;
+
+  @media (max-width: 768px) {
+    padding: 10px 12px;
   }
 `;
 
@@ -214,6 +203,10 @@ const SendButton = styled.button`
   cursor: pointer;
   font-size: 16px;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: fit-content;
   
   &:hover:not(:disabled) {
     background-color: #0056b3;
@@ -228,6 +221,33 @@ const SendButton = styled.button`
     background-color: #a0c7e4;
     cursor: not-allowed;
     transform: none;
+  }
+
+  @media (max-width: 768px) {
+    width: 40px;
+    height: 40px;
+    padding: 8px;
+    border-radius: 50%;
+    margin-left: 8px;
+    
+    span {
+      display: none;
+    }
+  }
+`;
+
+const InputForm = styled.form`
+  display: flex;
+  padding: 20px;
+  border-top: 1px solid #ddd;
+  transition: all 0.3s ease;
+  
+  &:focus-within {
+    background-color: #f8f9fa;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px;
   }
 `;
 
@@ -420,15 +440,13 @@ function Chat() {
           <Input
             type="text"
             value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            placeholder="Type a message..."
+            onChange={(e) => setInputValue(e.target.value)}
+            placeholder="Type your message..."
             disabled={isLoading}
           />
-          <SendButton 
-            type="submit" 
-            disabled={isLoading || !inputValue.trim()}
-          >
-            {isLoading ? 'Sending...' : 'Send'}
+          <SendButton type="submit" disabled={isLoading || !inputValue.trim()}>
+            <SendIcon sx={{ fontSize: 24 }} />
+            <span style={{ marginLeft: '4px' }}>Send</span>
           </SendButton>
         </InputForm>
       </ChatWindow>
